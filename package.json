@@ -1,0 +1,32 @@
+{
+  "name": "ludo-platform",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Production-grade multiplayer Ludo built as microservices",
+  "workspaces": [
+    "packages/*",
+    "services/*",
+    "web"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "npm run build --workspace @ludo/shared && npm run build --workspace @ludo/kit && npm run build --workspace @ludo/engine && npm run build --workspace @ludo/events && npm run build --workspace @ludo/identity --workspace @ludo/room --workspace @ludo/game --workspace @ludo/gateway --workspace @ludo/bff",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "dev": "./scripts/dev.sh",
+    "web:dev": "npm run dev --workspace @ludo/web",
+    "web:build": "npm run build --workspace @ludo/web",
+    "smoke": "node scripts/smoke-test.mjs",
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down -v",
+    "db:init": "docker compose exec -T postgres psql -U ludo -d ludo < db/init.sql"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "socket.io-client": "^4.8.3",
+    "typescript": "^5.6.3",
+    "vitest": "^4.1.10"
+  }
+}

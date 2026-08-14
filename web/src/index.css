@@ -1,0 +1,78 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,900&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  /* Night indigo ground - a blue-violet, deliberately not near-black. */
+  --color-night: #14172b;
+  --color-night-2: #1c2140;
+  --color-plum: #2a2140;
+
+  /* The board cloth. */
+  --color-cloth: #f0e6d2;
+  --color-cloth-2: #e3d5ba;
+
+  /* Brass is the structural accent: focus rings, rules, active states. */
+  --color-brass: #c9a227;
+  --color-brass-soft: #e5c766;
+
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  color: #ece8f2;
+  background:
+    radial-gradient(1200px 600px at 50% -10%, #2a2140 0%, transparent 60%),
+    radial-gradient(800px 500px at 100% 110%, #1c2140 0%, transparent 55%),
+    #14172b;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+/* Fraunces has a soft optical axis; dial it up at display sizes. */
+.display {
+  font-family: var(--font-display);
+  font-variation-settings: 'opsz' 120, 'SOFT' 40;
+  letter-spacing: -0.02em;
+}
+
+.mono { font-family: var(--font-mono); }
+
+/* A faint woven texture so the ground reads as cloth rather than flat colour. */
+.weave::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image:
+    repeating-linear-gradient(90deg, #fff 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(0deg, #fff 0 1px, transparent 1px 3px);
+}
+
+/* Anything clickable says so on hover. */
+button:not(:disabled),
+[role='button']:not([aria-disabled='true']) {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-brass);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

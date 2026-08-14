@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Environment secrets
+.env
+
+# Build outputs
+dist/
+build/
+
+# Docker local data
+db/
+
+# PowerShell scripts (local dev tools, not needed in repo)
+*.ps1
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local k3s / kube configs
+kubeconfig.yaml

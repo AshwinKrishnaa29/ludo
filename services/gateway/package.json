@@ -1,0 +1,32 @@
+{
+  "name": "@ludo/gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/index.js",
+    "dev": "node dist/index.js"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.3.0",
+    "@fastify/http-proxy": "^11.6.0",
+    "@fastify/static": "^10.1.3",
+    "@ludo/events": "*",
+    "@ludo/kit": "*",
+    "@ludo/shared": "*",
+    "@socket.io/redis-adapter": "^8.3.0",
+    "fastify": "^5.11.3",
+    "ioredis": "^5.11.1",
+    "socket.io": "^4.8.3"
+  }
+}

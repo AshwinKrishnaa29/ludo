@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ludo — stage 2 test client</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: system-ui, sans-serif; margin: 0; padding: 1rem; max-width: 780px; }
+  h1 { font-size: 1.1rem; margin: 0 0 .75rem; }
+  fieldset { border: 1px solid #8884; border-radius: 8px; margin-bottom: .75rem; padding: .75rem; }
+  legend { font-size: .8rem; opacity: .7; }
+  input, button { font: inherit; padding: .4rem .6rem; border-radius: 6px; border: 1px solid #8886; }
+  button { cursor: pointer; }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  #log { font-family: ui-monospace, monospace; font-size: .75rem; height: 160px;
+         overflow-y: auto; background: #8881; border-radius: 6px; padding: .5rem; white-space: pre-wrap; }
+  .board { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; margin: .5rem 0; }
+  .seat { border: 1px solid #8884; border-radius: 8px; padding: .5rem; font-size: .8rem; }
+  .seat.active { outline: 2px solid #4a9; }
+  .tok { display: inline-block; width: 1.9rem; height: 1.9rem; line-height: 1.9rem;
+         text-align: center; border-radius: 50%; margin: 2px; font-size: .7rem;
+         border: 1px solid #0004; cursor: default; }
+  /* A token you may legally move right now. Without this the client gives no
+     clue which tokens are clickable, so a legal move looks like a stuck game. */
+  .tok.movable { cursor: pointer; outline: 3px solid #111; outline-offset: 1px; }
+  .tok.idle { opacity: .3; }
+  .red{background:#e57373}.green{background:#81c784}.yellow{background:#ffd54f}.blue{background:#64b5f6}
+  .dice { font-size: 2rem; font-weight: 600; }
+  .row { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<h1>Ludo — stage 2 test client</h1>
+
+<fieldset>
+  <legend>1 · session</legend>
+  <div class="row">
+    <input id="name" placeholder="your name" value="">
+    <button id="login">Sign in as guest</button>
+    <span id="who"></span>
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>2 · room</legend>
+  <div class="row">
+    <button id="create" disabled>Create room</button>
+    <input id="code" placeholder="ROOM CODE" style="text-transform:uppercase;width:9rem">
+    <button id="join" disabled>Join</button>
+    <button id="start" disabled>Start game</button>
+  </div>
+  <div class="row" style="margin-top:.5rem">
+    <strong id="roomcode"></strong><span id="roomstatus"></span>
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>3 · game</legend>
+  <div class="row">
+    <button id="roll" disabled>Roll dice</button>
+    <span class="dice" id="dice">–</span>
+    <span id="turn"></span>
+    <span id="timer"></span>
+  </div>
+  <div class="board" id="board"></div>
+  <p style="font-size:.75rem;opacity:.7;margin:.25rem 0">Outlined tokens can be moved. Click one.</p>
+</fieldset>
+
+<fieldset>
+  <legend>event log</legend>
+  <div id="log"></div>
+</fieldset>
+
+<script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+<script>
+const IDENTITY = location.origin;
+const ROOM     = location.origin;
+const GATEWAY  = location.origin;
+
+let token = null, me = null, roomCode = null, gameId = null, socket = null;
+let state = null, legal = [];
+
+const $ = (id) => document.getElementById(id);
+const log = (msg) => {
+  const el = $('log');
+  el.textContent += msg + '\n';
+  el.scrollTop = el.scrollHeight;
+};
+const uuid = () => crypto.randomUUID();
+
+$('login').onclick = async () => {
+  const res = await fetch(IDENTITY + '/sessions/guest', {
+    method: 'POST', credentials: 'include',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ displayName: $('name').value || undefined })
+  });
+  const data = await res.json();
+  token = data.token; me = data.userId;
+  $('who').textContent = 'signed in as ' + data.displayName;
+  $('create').disabled = $('join').disabled = false;
+  log('signed in: ' + data.displayName);
+  connect();
+};
+
+function connect() {
+  socket = io(GATEWAY, { auth: { token }, withCredentials: true });
+  socket.on('connect', () => log('socket connected'));
+  socket.on('disconnect', (r) => log('socket disconnected: ' + r));
+  socket.on('connect_error', (e) => log('socket error: ' + e.message));
+
+  socket.on('snapshot', (snap) => {
+    state = snap.state; legal = snap.legalTokenIds || [];
+    render();
+    log('snapshot restored at version ' + state.version);
+  });
+
+  socket.on('game_update', async (env) => {
+    state = env.state; legal = [];
+    for (const ev of env.events) log('  · ' + describe(ev));
+    render();
+    // Legal moves are derived server-side from the pending roll, so they must
+    // be refetched on every state change — not just on the first snapshot.
+    if (isMyMove()) {
+      legal = await fetchLegal();
+      render();
+    }
+  });
+}
+
+/** True when it is this player's turn and the engine is waiting for a move. */
+function isMyMove() {
+  if (!state || state.phase !== 'awaiting_move') return false;
+  const current = state.players[state.turnIndex];
+  return !!current && current.userId === me;
+}
+
+async function fetchLegal() {
+  if (!gameId) return [];
+  try {
+    const res = await fetch(GATEWAY + '/games/' + gameId, {
+      headers: { authorization: 'Bearer ' + token }
+    });
+    if (!res.ok) { log('legal-move lookup failed: http ' + res.status); return []; }
+    const snap = await res.json();
+    return snap.legalTokenIds || [];
+  } catch (e) {
+    log('legal-move lookup failed: ' + e.message);
+    return [];
+  }
+}
+
+function describe(ev) {
+  switch (ev.type) {
+    case 'dice_rolled':     return short(ev.userId) + ' rolled ' + ev.value;
+    case 'token_moved':     return short(ev.userId) + ' moved token ' + ev.tokenId + ' → ' + ev.to;
+    case 'token_captured':  return short(ev.byUserId) + ' captured ' + short(ev.victimUserId);
+    case 'token_home':      return short(ev.userId) + ' sent a token home';
+    case 'extra_turn':      return short(ev.userId) + ' gets another turn (' + ev.reason + ')';
+    case 'turn_passed':     return 'turn → ' + short(ev.toUserId) + ' (' + ev.reason + ')';
+    case 'player_finished': return short(ev.userId) + ' finished at rank ' + ev.rank;
+    case 'game_finished':   return 'GAME OVER: ' + ev.winnerOrder.map(short).join(' > ');
+    case 'connection_changed': return short(ev.userId) + (ev.connected ? ' online' : ' offline');
+    default: return JSON.stringify(ev);
+  }
+}
+const short = (id) => {
+  const p = state?.players.find(p => p.userId === id);
+  return p ? p.displayName : String(id).slice(0, 4);
+};
+
+$('create').onclick = async () => {
+  const res = await fetch(ROOM + '/rooms', {
+    method: 'POST', credentials: 'include',
+    headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
+    body: JSON.stringify({ maxPlayers: 4 })
+  });
+  const data = await res.json();
+  roomCode = data.code;
+  $('roomcode').textContent = 'Room ' + data.code;
+  $('code').value = data.code;
+  $('start').disabled = false;
+  log('room created: ' + data.code + ' — share this code with the other tabs');
+  pollRoom();
+};
+
+$('join').onclick = async () => {
+  const code = $('code').value.trim().toUpperCase();
+  const res = await fetch(ROOM + '/rooms/' + code + '/join', {
+    method: 'POST', credentials: 'include',
+    headers: { authorization: 'Bearer ' + token }
+  });
+  const data = await res.json();
+  if (!res.ok) return log('join failed: ' + data.error);
+  roomCode = code;
+  $('roomcode').textContent = 'Room ' + code + ' (seat ' + data.seatIndex + ')';
+  log('joined room ' + code + ' at seat ' + data.seatIndex);
+  pollRoom();
+};
+
+$('start').onclick = async () => {
+  const res = await fetch(ROOM + '/rooms/' + roomCode + '/start', {
+    method: 'POST', credentials: 'include',
+    headers: { authorization: 'Bearer ' + token }
+  });
+  const data = await res.json();
+  if (!res.ok) return log('start failed: ' + data.error);
+  log('game started');
+};
+
+async function pollRoom() {
+  if (!roomCode) return;
+  try {
+    const res = await fetch(ROOM + '/rooms/' + roomCode);
+    const room = await res.json();
+    $('roomstatus').textContent = ' · ' + room.status + ' · ' + room.seats.length + ' seated';
+    if (room.gameId && room.gameId !== gameId) {
+      gameId = room.gameId;
+      socket.emit('join_game', gameId, (a) => log('joined game ' + gameId.slice(0, 8) + ' ' + JSON.stringify(a)));
+    }
+  } catch (e) { /* room service momentarily down; keep polling */ }
+  setTimeout(pollRoom, 1500);
+}
+
+$('roll').onclick = () => {
+  socket.emit('command', {
+    gameId,
+    command: { type: 'roll_dice', commandId: uuid(), issuedAt: Date.now() }
+  }, (r) => { if (!r.ok) log('roll rejected: ' + r.error); });
+};
+
+function move(tokenId) {
+  socket.emit('command', {
+    gameId,
+    command: { type: 'move_token', tokenId, commandId: uuid(), issuedAt: Date.now() }
+  }, (r) => { if (!r.ok) log('move rejected: ' + r.error); });
+}
+
+function render() {
+  if (!state) return;
+  const current = state.players[state.turnIndex];
+  const mine = current && current.userId === me;
+  const myMove = isMyMove();
+
+  $('dice').textContent = state.pendingRoll ?? '–';
+  $('turn').textContent = state.phase === 'finished'
+    ? 'game over'
+    : (mine
+        ? (myMove ? 'YOUR TURN — move a token' : 'YOUR TURN — roll')
+        : current.displayName + "'s turn");
+  $('roll').disabled = !(mine && state.phase === 'awaiting_roll');
+
+  $('board').innerHTML = '';
+  for (const p of state.players) {
+    const el = document.createElement('div');
+    el.className = 'seat' + (p.userId === current?.userId ? ' active' : '');
+    const head = document.createElement('div');
+    head.textContent = p.displayName + (p.connected ? '' : ' (offline)') +
+      (p.finishedRank ? ' #' + p.finishedRank : '');
+    el.appendChild(head);
+    for (const t of p.tokens) {
+      const b = document.createElement('span');
+      // Only my own tokens are ever clickable, and only the ones the engine
+      // says are legal for the pending roll. Everything else of mine is dimmed
+      // so "nothing to do" and "pick one of these" look different.
+      const movable = myMove && p.userId === me && legal.includes(t.id);
+      b.className = 'tok ' + p.colour
+        + (movable ? ' movable' : '')
+        + (myMove && p.userId === me && !movable ? ' idle' : '');
+      b.textContent = t.progress === null ? '·' : (t.progress >= 57 ? '★' : t.progress);
+      if (movable) b.onclick = () => move(t.id);
+      el.appendChild(b);
+    }
+    $('board').appendChild(el);
+  }
+
+  if (state.phase !== 'finished') {
+    const left = Math.max(0, Math.round((state.turnDeadline - Date.now()) / 1000));
+    $('timer').textContent = ' · ' + left + 's';
+  } else {
+    $('timer').textContent = '';
+  }
+}
+
+setInterval(() => { if (state) render(); }, 1000);
+</script>
+</body>
+</html>

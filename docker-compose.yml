@@ -1,0 +1,51 @@
+# Local development backing services.
+# Every image here is multi-arch, so this file works identically on your
+# laptop and on the Oracle ARM box.
+name: ludo
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ludo
+      POSTGRES_PASSWORD: ludo_dev_password
+      POSTGRES_DB: ludo
+    ports: ['5433:5432']
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Applied automatically the first time the volume is created.
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ludo']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    # appendonly is not optional here: live game state lives in Redis, and the
+    # chaos test kills pods mid-match. Without AOF, a restart loses games.
+    command: ['redis-server', '--appendonly', 'yes', '--appendfsync', 'everysec']
+    ports: ['6379:6379']
+    volumes: ['redisdata:/data']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  nats:
+    image: nats:2.10-alpine
+    command: ['-js', '-sd', '/data', '-m', '8222']
+    ports: ['4222:4222', '8222:8222']
+    volumes: ['natsdata:/data']
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:8222/healthz']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
+  redisdata:
+  natsdata:
