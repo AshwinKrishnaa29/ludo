@@ -24,60 +24,53 @@ jobs:
           mkdir -p ~/.oci
           printf '%s' "$OCI_PRIVATE_KEY" > ~/.oci/private_key.pem
           chmod 600 ~/.oci/private_key.pem
-          cat > ~/.oci/config << OCIEOF
-          [DEFAULT]
-          user=${OCI_USER_ID}
-          fingerprint=${OCI_KEY_FINGERPRINT}
-          tenancy=${OCI_TENANCY_ID}
-          region=ap-hyderabad-1
-          key_file=/home/runner/.oci/private_key.pem
-          OCIEOF
+          printf '[DEFAULT]\nuser=%s\nfingerprint=%s\ntenancy=%s\nregion=ap-hyderabad-1\nkey_file=/home/runner/.oci/private_key.pem\n' "$OCI_USER_ID" "$OCI_KEY_FINGERPRINT" "$OCI_TENANCY_ID" > ~/.oci/config
+          chmod 600 ~/.oci/config
 
-      - name: Check existing instances
-        id: check
-        env:
-          OCI_TENANCY_ID: ${{ secrets.OCI_TENANCY_ID }}
-        run: |
-          COUNT=$(oci compute instance list \
-            --compartment-id "$OCI_TENANCY_ID" \
-            --region ap-hyderabad-1 \
-            --lifecycle-state RUNNING \
-            --query "length(data)" \
-            --raw-output 2>/dev/null || echo "0")
-          echo "Running instances: $COUNT"
-          echo "instance_count=$COUNT" >> "$GITHUB_OUTPUT"
-
-      - name: Try to create instance
-        if: steps.check.outputs.instance_count == '0'
+      - name: Find image and create instance
         env:
           OCI_TENANCY_ID: ${{ secrets.OCI_TENANCY_ID }}
           OCI_SSH_PUBLIC_KEY: ${{ secrets.OCI_SSH_PUBLIC_KEY }}
+          OCI_CLI_SUPPRESS_FILE_PERMISSIONS_WARNING: "True"
         run: |
-          echo "No running instance found. Attempting to create..."
+          echo "Finding latest Ubuntu 22.04 image..."
+          IMAGE_ID=$(oci compute image list \
+            --compartment-id "$OCI_TENANCY_ID" \
+            --operating-system "Canonical Ubuntu" \
+            --operating-system-version "22.04" \
+            --sort-by TIMECREATED \
+            --sort-order DESC \
+            --query "data[0].id" \
+            --raw-output \
+            --region ap-hyderabad-1 2>/dev/null)
+          echo "Image ID: $IMAGE_ID"
+
+          echo "Attempting to create instance..."
           oci compute instance launch \
             --availability-domain "tvSn:AP-HYDERABAD-1-AD-1" \
             --compartment-id "$OCI_TENANCY_ID" \
             --shape "VM.Standard.A1.Flex" \
             --shape-config '{"ocpus": 4, "memoryInGBs": 24}' \
-            --image-id "ocid1.image.oc1.ap-hyderabad-1.aaaaaaaasw3uh2uyc3rqwqbbrzkgus7nf3etwmob7guujjlzxtkecaxgqpkq" \
-            --subnet-id "ocid1.subnet.oc1.ap-hyderabad-1.aaaaaaaagr7e47rie46mwl7brxubwwcaij2bwfvtnjftsib3uhfuxo4yozpa" \
+            --image-id "$IMAGE_ID" \
+            --subnet-id "ocid1.subnet.oc1.ap-hyderabad-1.aaaaaaaa2tumoh3itfkguqy4ecdicsyloq4vyfqoll57yrpzg3yjsirxb5xq" \
             --assign-public-ip true \
             --display-name "ludo-platform" \
             --metadata "{\"ssh_authorized_keys\": \"$OCI_SSH_PUBLIC_KEY\"}" \
             --region ap-hyderabad-1 \
             2>&1 | tee /tmp/result.txt || true
-          if grep -qi "Out of host capacity" /tmp/result.txt; then
-            echo "No capacity yet. Will retry in 5 minutes."
-          elif grep -qi "lifecycleState" /tmp/result.txt; then
-            echo "SUCCESS - Instance created! Check Oracle Cloud console now."
-          elif grep -qi "LimitExceeded" /tmp/result.txt; then
-            echo "Instance already exists."
-          else
-            echo "Response:"
-            cat /tmp/result.txt
-          fi
 
-      - name: Already running
-        if: steps.check.outputs.instance_count != '0'
-        run: |
-          echo "Instance already running. Disable this workflow."
+          echo "--- Response ---"
+          cat /tmp/result.txt
+          echo "--- End ---"
+
+          if grep -qi "Out of host capacity" /tmp/result.txt; then
+            echo "RESULT: No capacity yet. Will retry in 5 minutes."
+          elif grep -qi "lifecycleState" /tmp/result.txt; then
+            echo "RESULT: SUCCESS - Instance created!"
+          elif grep -qi "LimitExceeded" /tmp/result.txt; then
+            echo "RESULT: Instance already exists."
+          elif grep -qi "NotAuthorizedOrNotFound" /tmp/result.txt; then
+            echo "RESULT: Auth error."
+          else
+            echo "RESULT: Unknown response."
+          fi
