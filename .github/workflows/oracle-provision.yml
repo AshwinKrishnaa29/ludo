@@ -27,6 +27,21 @@ jobs:
           printf '[DEFAULT]\nuser=%s\nfingerprint=%s\ntenancy=%s\nregion=ap-hyderabad-1\nkey_file=/home/runner/.oci/private_key.pem\n' "$OCI_USER_ID" "$OCI_KEY_FINGERPRINT" "$OCI_TENANCY_ID" > ~/.oci/config
           chmod 600 ~/.oci/config
 
+      - name: Verify config
+        env:
+          OCI_CLI_SUPPRESS_FILE_PERMISSIONS_WARNING: "True"
+        run: |
+          echo "=== Config file ==="
+          cat ~/.oci/config
+          echo "=== Key first line ==="
+          head -1 ~/.oci/private_key.pem
+          echo "=== Key last line ==="
+          tail -1 ~/.oci/private_key.pem
+          echo "=== Key line count ==="
+          wc -l ~/.oci/private_key.pem
+          echo "=== Testing OCI connection ==="
+          oci iam region list 2>&1 || true
+
       - name: Try to create instance
         env:
           OCI_TENANCY_ID: ${{ secrets.OCI_TENANCY_ID }}
@@ -34,7 +49,6 @@ jobs:
           OCI_CLI_SUPPRESS_FILE_PERMISSIONS_WARNING: "True"
         run: |
           echo "Attempting to create VM.Standard.A1.Flex instance..."
-
           oci compute instance launch \
             --availability-domain "tvSn:AP-HYDERABAD-1-AD-1" \
             --compartment-id "$OCI_TENANCY_ID" \
@@ -47,21 +61,17 @@ jobs:
             --metadata "{\"ssh_authorized_keys\": \"$OCI_SSH_PUBLIC_KEY\"}" \
             --region ap-hyderabad-1 \
             2>&1 | tee /tmp/result.txt || true
-
           echo "--- Response ---"
           cat /tmp/result.txt
           echo "--- End Response ---"
-
           if grep -qi "Out of host capacity" /tmp/result.txt; then
             echo "RESULT: No capacity yet. Will retry in 5 minutes."
           elif grep -qi "lifecycleState" /tmp/result.txt; then
-            echo "RESULT: SUCCESS - Instance created! Check Oracle Cloud console now."
+            echo "RESULT: SUCCESS - Instance created!"
           elif grep -qi "LimitExceeded" /tmp/result.txt; then
-            echo "RESULT: Instance already exists - stop this workflow."
+            echo "RESULT: Instance already exists."
           elif grep -qi "NotAuthorizedOrNotFound" /tmp/result.txt; then
             echo "RESULT: Auth error - check OCI secrets."
-          elif grep -qi "TooManyRequests" /tmp/result.txt; then
-            echo "RESULT: Rate limited. Will retry in 5 minutes."
           else
-            echo "RESULT: Unknown response - check logs above."
+            echo "RESULT: Unknown response."
           fi
