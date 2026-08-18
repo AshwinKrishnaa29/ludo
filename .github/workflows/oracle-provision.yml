@@ -24,19 +24,23 @@ jobs:
           mkdir -p ~/.oci
           printf '%s' "$OCI_PRIVATE_KEY" > ~/.oci/private_key.pem
           chmod 600 ~/.oci/private_key.pem
+          chmod 600 ~/.oci/config 2>/dev/null || true
           cat > ~/.oci/config << OCIEOF
-          [DEFAULT]
-          user=${OCI_USER_ID}
-          fingerprint=${OCI_KEY_FINGERPRINT}
-          tenancy=${OCI_TENANCY_ID}
-          region=ap-hyderabad-1
-          key_file=/home/runner/.oci/private_key.pem
-          OCIEOF
+[DEFAULT]
+user=${OCI_USER_ID}
+fingerprint=${OCI_KEY_FINGERPRINT}
+tenancy=${OCI_TENANCY_ID}
+region=ap-hyderabad-1
+key_file=/home/runner/.oci/private_key.pem
+OCIEOF
+          chmod 600 ~/.oci/config
+          export OCI_CLI_SUPPRESS_FILE_PERMISSIONS_WARNING=True
 
       - name: Try to create instance
         env:
           OCI_TENANCY_ID: ${{ secrets.OCI_TENANCY_ID }}
           OCI_SSH_PUBLIC_KEY: ${{ secrets.OCI_SSH_PUBLIC_KEY }}
+          OCI_CLI_SUPPRESS_FILE_PERMISSIONS_WARNING: "True"
         run: |
           echo "Attempting to create VM.Standard.A1.Flex instance..."
 
@@ -63,6 +67,8 @@ jobs:
             echo "RESULT: SUCCESS - Instance created! Check Oracle Cloud console now."
           elif grep -qi "LimitExceeded" /tmp/result.txt; then
             echo "RESULT: Instance already exists - stop this workflow."
+          elif grep -qi "NotAuthorizedOrNotFound" /tmp/result.txt; then
+            echo "RESULT: Auth error - check OCI config secrets."
           elif grep -qi "TooManyRequests" /tmp/result.txt; then
             echo "RESULT: Rate limited. Will retry in 5 minutes."
           else
