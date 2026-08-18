@@ -33,27 +33,13 @@ jobs:
           key_file=/home/runner/.oci/private_key.pem
           OCIEOF
 
-      - name: Check existing instances
-        id: check
-        env:
-          OCI_TENANCY_ID: ${{ secrets.OCI_TENANCY_ID }}
-        run: |
-          COUNT=$(oci compute instance list \
-            --compartment-id "$OCI_TENANCY_ID" \
-            --region ap-hyderabad-1 \
-            --lifecycle-state RUNNING \
-            --query "length(data)" \
-            --raw-output 2>/dev/null || echo "0")
-          echo "Running instances: $COUNT"
-          echo "instance_count=$COUNT" >> "$GITHUB_OUTPUT"
-
       - name: Try to create instance
-        if: steps.check.outputs.instance_count == '0'
         env:
           OCI_TENANCY_ID: ${{ secrets.OCI_TENANCY_ID }}
           OCI_SSH_PUBLIC_KEY: ${{ secrets.OCI_SSH_PUBLIC_KEY }}
         run: |
-          echo "No running instance found. Attempting to create..."
+          echo "Attempting to create VM.Standard.A1.Flex instance..."
+
           oci compute instance launch \
             --availability-domain "tvSn:AP-HYDERABAD-1-AD-1" \
             --compartment-id "$OCI_TENANCY_ID" \
@@ -66,18 +52,19 @@ jobs:
             --metadata "{\"ssh_authorized_keys\": \"$OCI_SSH_PUBLIC_KEY\"}" \
             --region ap-hyderabad-1 \
             2>&1 | tee /tmp/result.txt || true
-          if grep -qi "Out of host capacity" /tmp/result.txt; then
-            echo "No capacity yet. Will retry in 5 minutes."
-          elif grep -qi "lifecycleState" /tmp/result.txt; then
-            echo "SUCCESS - Instance created! Check Oracle Cloud console now."
-          elif grep -qi "LimitExceeded" /tmp/result.txt; then
-            echo "Instance already exists."
-          else
-            echo "Response:"
-            cat /tmp/result.txt
-          fi
 
-      - name: Already running
-        if: steps.check.outputs.instance_count != '0'
-        run: |
-          echo "Instance already running. Disable this workflow."
+          echo "--- Response ---"
+          cat /tmp/result.txt
+          echo "--- End Response ---"
+
+          if grep -qi "Out of host capacity" /tmp/result.txt; then
+            echo "RESULT: No capacity yet. Will retry in 5 minutes."
+          elif grep -qi "lifecycleState" /tmp/result.txt; then
+            echo "RESULT: SUCCESS - Instance created! Check Oracle Cloud console now."
+          elif grep -qi "LimitExceeded" /tmp/result.txt; then
+            echo "RESULT: Instance already exists - stop this workflow."
+          elif grep -qi "TooManyRequests" /tmp/result.txt; then
+            echo "RESULT: Rate limited. Will retry in 5 minutes."
+          else
+            echo "RESULT: Unknown response - check logs above."
+          fi
