@@ -38,6 +38,7 @@ jobs:
             --compartment-id "$OCI_TENANCY_ID" \
             --operating-system "Canonical Ubuntu" \
             --operating-system-version "22.04" \
+            --shape "VM.Standard.A1.Flex" \
             --sort-by TIMECREATED \
             --sort-order DESC \
             --query "data[0].id" \
