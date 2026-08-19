@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: game
+  namespace: ludo
+  labels:
+    app: game
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: game
+  template:
+    metadata:
+      labels:
+        app: game
+    spec:
+      containers:
+        - name: game
+          image: ghcr.io/ashwinkrishnaa29/ludo-game:latest
+          ports:
+            - containerPort: 4003
+          envFrom:
+            - configMapRef:
+                name: ludo-config
+            - secretRef:
+                name: ludo-secrets
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 4003
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 4003
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "300m"
+              memory: "256Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: game
+  namespace: ludo
+spec:
+  selector:
+    app: game
+  ports:
+    - port: 4003
+      targetPort: 4003

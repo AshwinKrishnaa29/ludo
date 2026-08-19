@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ludo-config
+  namespace: ludo
+data:
+  IDENTITY_URL: "http://identity:4001"
+  ROOM_URL: "http://room:4002"
+  GAME_URL: "http://game:4003"
+  WEB_ORIGIN: "http://gateway:4004"
+  NATS_URL: "nats://nats:4222"
+  REDIS_URL: "redis://redis:6379"
+  LOG_LEVEL: "info"

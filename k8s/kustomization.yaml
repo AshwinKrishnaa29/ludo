@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ludo
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - postgres.yaml
+  - redis.yaml
+  - nats.yaml
+  - identity.yaml
+  - room.yaml
+  - game.yaml
+  - gateway.yaml
+  - bff.yaml
+
+# secret.yaml is deliberately NOT listed here.
+# Real secrets are applied once, manually, and never committed to git —
+# see secret.example.yaml for the template and instructions.

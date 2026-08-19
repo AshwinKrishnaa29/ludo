@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: room
+  namespace: ludo
+  labels:
+    app: room
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: room
+  template:
+    metadata:
+      labels:
+        app: room
+    spec:
+      containers:
+        - name: room
+          image: ghcr.io/ashwinkrishnaa29/ludo-room:latest
+          ports:
+            - containerPort: 4002
+          envFrom:
+            - configMapRef:
+                name: ludo-config
+            - secretRef:
+                name: ludo-secrets
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 4002
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 4002
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "96Mi"
+            limits:
+              cpu: "200m"
+              memory: "192Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: room
+  namespace: ludo
+spec:
+  selector:
+    app: room
+  ports:
+    - port: 4002
+      targetPort: 4002
