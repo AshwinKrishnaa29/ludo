@@ -1,4 +1,4 @@
-// web/src/components/Chat.tsx
+﻿// web/src/components/Chat.tsx
 
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';

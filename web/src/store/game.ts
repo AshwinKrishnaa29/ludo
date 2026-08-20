@@ -1,5 +1,5 @@
-// web/src/store/game.ts
-// Zustand store — no JSX, no React components here.
+﻿// web/src/store/game.ts
+// Zustand store â€” no JSX, no React components here.
 
 import { create } from 'zustand';
 import { io, type Socket } from 'socket.io-client';

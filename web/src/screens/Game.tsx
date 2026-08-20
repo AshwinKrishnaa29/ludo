@@ -1,4 +1,4 @@
-// web/src/screens/Game.tsx
+﻿// web/src/screens/Game.tsx
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -301,7 +301,7 @@ export function Game({ onLeave }: Props) {
           </motion.div>
         )}
 
-        {/* End screen — lives in its own file, just used here */}
+        {/* End screen â€” lives in its own file, just used here */}
         {state.phase === 'finished' && (
           <EndScreen state={state} stats={stats} userId={userId} onLeave={onLeave} />
         )}
@@ -309,3 +309,4 @@ export function Game({ onLeave }: Props) {
     </div>
   );
 }
+
