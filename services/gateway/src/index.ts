@@ -1,4 +1,4 @@
-import Fastify from 'fastify';
+﻿import Fastify from 'fastify';
 import fastifyCors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
 import fastifyProxy from '@fastify/http-proxy';
@@ -15,6 +15,7 @@ const verify = makeVerifier(env('JWT_SECRET'));
 const GAME_URL = env('GAME_URL', 'http://localhost:4003');
 const IDENTITY_URL = env('IDENTITY_URL', 'http://localhost:4001');
 const ROOM_URL = env('ROOM_URL', 'http://localhost:4002');
+const BFF_URL = env('BFF_URL', 'http://localhost:4005');
 const WEB_ORIGIN = env('WEB_ORIGIN', 'http://localhost:4004');
 
 const app = Fastify({ logger: { level: env('LOG_LEVEL', 'info') } });
@@ -46,6 +47,12 @@ await app.register(fastifyProxy, {
   upstream: GAME_URL,
   prefix: '/games',
   rewritePrefix: '/games',
+});
+
+await app.register(fastifyProxy, {
+  upstream: BFF_URL,
+  prefix: '/graphql',
+  rewritePrefix: '/graphql',
 });
 
 app.get('/healthz', async () => ({ status: 'ok' }));
