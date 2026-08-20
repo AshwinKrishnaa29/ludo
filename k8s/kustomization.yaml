@@ -16,7 +16,20 @@ resources:
   - bff.yaml
   - ingress.yaml
 
+images:
+  - name: ghcr.io/ashwinkrishnaa29/ludo-identity
+    newTag: latest
+  - name: ghcr.io/ashwinkrishnaa29/ludo-room
+    newTag: latest
+  - name: ghcr.io/ashwinkrishnaa29/ludo-game
+    newTag: latest
+  - name: ghcr.io/ashwinkrishnaa29/ludo-gateway
+    newTag: latest
+  - name: ghcr.io/ashwinkrishnaa29/ludo-bff
+    newTag: latest
+
 # secret.yaml is deliberately NOT listed here.
 # Real secrets are applied once, manually, and never committed to git â€”
 # see secret.example.yaml for the template and instructions.
+
 
