@@ -15,7 +15,7 @@ export function Confetti() {
       y: Math.random() * -canvas.height,
       r: Math.random() * 7 + 4,
       d: Math.random() * 3 + 1,
-      color: ['#c9a227', '#d1483f', '#2f9159', '#3a72b8', '#dfa62b'][Math.floor(Math.random() * 5)],
+      color: ['#c9a227', '#d1483f', '#2f9159', '#3a72b8', '#dfa62b'][Math.floor(Math.random() * 5)] ?? '#c9a227',
       tilt: Math.random() * 10 - 5,
       tiltSpeed: Math.random() * 0.1 + 0.05,
       angle: 0,

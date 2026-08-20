@@ -4,6 +4,7 @@
 import { create } from 'zustand';
 import { io, type Socket } from 'socket.io-client';
 import type { GameEvent, GameState } from '@ludo/shared';
+import type { ObservedRoll } from '@/lib/verify';
 import { get } from '@/lib/api';
 
 interface Envelope {
@@ -50,7 +51,7 @@ interface GameStore {
   lastRoll: LastRoll | null;
   rejection: string | null;
   joinError: string | null;
-  rolls: number[];
+  rolls: ObservedRoll[];
   serverSeedHash: string | null;
   chat: ChatMessage[];
   unread: number;
@@ -143,8 +144,8 @@ export const useGame = create<GameStore>((set, getState) => ({
         legal: [],
         lastEvents: env.events,
         rolls: rolled && rolled.type === 'dice_rolled'
-          ? [...getState().rolls, rolled.value]
-          : getState().rolls,
+        ? [...getState().rolls, { nonce: rolled.rollProof.nonce, value: rolled.value, userId: rolled.userId }]
+        : getState().rolls,
         ...(rolled && rolled.type === 'dice_rolled'
           ? { lastRoll: { userId: rolled.userId, value: rolled.value, seq: ++seq } }
           : {}),

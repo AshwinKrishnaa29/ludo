@@ -18,7 +18,7 @@ interface Props {
 }
 
 export function Chat({ state, open, onClose }: Props) {
-  const { chat, say, unread } = useGame();
+  const { chat, say } = useGame();
   const { userId } = useSession();
   const [draft, setDraft] = useState('');
   const scroller = useRef<HTMLDivElement>(null);

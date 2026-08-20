@@ -8,7 +8,6 @@ import { DiceTray } from '@/components/DiceTray';
 import { PlayerSeat } from '@/components/PlayerSeat';
 import { Flash, type FlashMessage } from '@/components/Flash';
 import { Chat } from '@/components/Chat';
-import { FairnessPanel } from '@/components/FairnessPanel';
 import { PausedOverlay } from '@/components/PausedOverlay';
 import { EndScreen } from '@/components/EndScreen';
 import { useGame } from '@/store/game';
@@ -35,7 +34,7 @@ function useIsWide(): boolean {
 export function Game({ onLeave }: Props) {
   const {
     state, legal, lastEvents, lastRoll, connected, rejection,
-    unread, gameId, stats, roll, move, abandon, leaveGame, setSelf,
+    unread, stats, roll, move, abandon, leaveGame, setSelf,
   } = useGame();
   const { userId } = useSession();
   const wide = useIsWide();
