@@ -1,9 +1,8 @@
-# Generic service Dockerfile — builds ANY of the 5 microservices.
+﻿# Generic service Dockerfile — builds ANY of the 5 microservices.
 # Pass --build-arg SERVICE=identity|room|game|gateway|bff
 #
-# Same proven pattern as the original root Dockerfile (which only built
-# `game`), generalised so one file serves all five services and CI can
-# build them in a matrix.
+# Gateway build also compiles the real React client (web/) since its
+# vite.config.ts outputs directly into services/gateway/public.
 
 FROM node:22-alpine AS build
 ARG SERVICE
@@ -13,18 +12,17 @@ COPY package.json package-lock.json ./
 COPY tsconfig.base.json ./
 COPY packages ./packages
 COPY services/${SERVICE} ./services/${SERVICE}
+COPY web ./web
 
 RUN npm ci --ignore-scripts
 
-# Build the shared packages first (dependency order matters), then the
-# target service. Building engine/events even for services that don't use
-# them is harmless — the packages are tiny and this keeps one Dockerfile
-# instead of five near-identical ones.
 RUN npm run build --workspace @ludo/shared \
  && npm run build --workspace @ludo/kit \
  && npm run build --workspace @ludo/engine \
  && npm run build --workspace @ludo/events \
  && npm run build --workspace @ludo/${SERVICE}
+
+RUN if [ "$SERVICE" = "gateway" ]; then npm run build --workspace @ludo/web; fi
 
 RUN npm prune --omit=dev
 
