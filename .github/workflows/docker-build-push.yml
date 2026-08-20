@@ -1,10 +1,11 @@
-name: Build and push service images
+﻿name: Build and push service images
 
 on:
   push:
     branches: [main]
     paths:
       - 'services/**'
+      - 'web/**'
       - 'packages/**'
       - 'Dockerfile.service'
       - '.github/workflows/docker-build-push.yml'
@@ -50,3 +51,4 @@ jobs:
             ghcr.io/${{ env.IMAGE_OWNER }}/ludo-${{ matrix.service }}:${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
