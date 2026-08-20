@@ -18,15 +18,15 @@ resources:
 
 images:
   - name: ghcr.io/ashwinkrishnaa29/ludo-identity
-    newTag: latest
+    newTag: de23ed1e9148c6478cb3749f8efcbac24dd41a15
   - name: ghcr.io/ashwinkrishnaa29/ludo-room
-    newTag: latest
+    newTag: de23ed1e9148c6478cb3749f8efcbac24dd41a15
   - name: ghcr.io/ashwinkrishnaa29/ludo-game
-    newTag: latest
+    newTag: de23ed1e9148c6478cb3749f8efcbac24dd41a15
   - name: ghcr.io/ashwinkrishnaa29/ludo-gateway
-    newTag: latest
+    newTag: de23ed1e9148c6478cb3749f8efcbac24dd41a15
   - name: ghcr.io/ashwinkrishnaa29/ludo-bff
-    newTag: latest
+    newTag: de23ed1e9148c6478cb3749f8efcbac24dd41a15
 
 # secret.yaml is deliberately NOT listed here.
 # Real secrets are applied once, manually, and never committed to git â€”
